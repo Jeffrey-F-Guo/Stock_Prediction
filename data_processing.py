@@ -5,23 +5,43 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import mplfinance as mpf
 from typing import Tuple
+import pandas_ta as ta
+import os
+import shutil
 
-
-def main():
+def main(save_dir:str):
     TICKERS = [
         "AAPL",
         "GOOG",
         "COIN",
         "AMZN",
         "TQQQ",
+
     ]
 
     ticker_dict = {}
+    window_size = 30
 
     for tick in TICKERS:
         print(tick)
-        ticker_dict[tick] = pull_data(tick)
+        ticker_obj, ticker_df = pull_data(tick)
+        calculate_macd(ticker_df)
+        calculate_bollinger(ticker_df)
+        calculate_bin_label(ticker_df)
+        calculate_delta_p(ticker_df)
 
+        ticker_dict[tick] = (ticker_obj, ticker_df)
+
+    print(ticker_dict["GOOG"])
+
+    # So we dont have to regenerate the same images for every run
+    # for k,v in ticker_dict.items():
+    #     ticker_df = v[1]
+    #     for i in range(0, len(ticker_df), window_size):
+    #         segment_df = segment_data(ticker_df, i)
+    #         generate_chart(segment_df, i, k, save_dir)
+
+    print(ticker_dict["GOOG"][1].columns)
     
 
 def pull_data(name: str) -> Tuple[yf.Ticker, pd.DataFrame]:
@@ -48,18 +68,55 @@ def pull_data(name: str) -> Tuple[yf.Ticker, pd.DataFrame]:
     return ticker, data
     
 
-def calculate_macd():
-    ...
-def calculate_bollinger():
-    ...
-def calculate_bin_label():
-    ...
-def calculate_delta_p():
-    ...
-def segment_data():
-    ...
-def generate_chart():
-    ...
+def calculate_macd(df: pd.DataFrame):
+    df.ta.macd(close="Close", fast=13, slow=26, signal=9, append=True)
+
+def calculate_bollinger(df: pd.DataFrame):
+    df.ta.bbands(close='Close', length=20, std=2.0, append=True)
+
+def calculate_bin_label(df: pd.DataFrame):
+    """Calculate the binary up/down label for the next day"""
+    # input dataframe will have Open High Low Close Volume
+    if "Close" not in df.columns:
+        print("Data does not have close. Cannot calculate")
+        return
+    if "Close_delta" not in df.columns:
+        df["Close_delta"] = df["Close"].diff()
+    if "U/D" not in df.columns:
+        df["U/D"] = np.where(df["Close_delta"] > 0, 1, 0)
+
+
+def calculate_delta_p(df: pd.DataFrame):
+    """Calculate the binary up/down label for the next day"""
+    # input dataframe will have Open High Low Close Volume
+    if "Close" not in df.columns:
+        print("Data does not have close. Cannot calculate")
+        return
+    if "Close_delta" not in df.columns:
+        df["Close_delta"] = df["Close"].diff()
+    if "Percent" not in df.columns:
+        # df["Percent"] = df["Close_delta"]/df["Close"].shift(1) * 100
+        df["Percent"] = df["Close"].pct_change() * 100
+
+def segment_data(df: pd.DataFrame, idx: int, window_size: int=30):
+    segment_df = df.iloc[idx:idx+window_size]
+    return segment_df
+
+def generate_chart(df: pd.DataFrame, idx:int, ticker:str, save_dir:str, window_size: int = 30):
+    os.makedirs(save_dir, exist_ok=True)
+
+    mpf.plot(
+        df, 
+        type="candle", 
+        style="yahoo", 
+        figscale=1.5,
+        savefig = os.path.join(save_dir, f"{ticker}_{idx}_to_{idx+window_size}.png")
+    )
+    
+
 
 if __name__ == "__main__":
-    main()
+    save_dir = "charts"
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
+    main(save_dir)
