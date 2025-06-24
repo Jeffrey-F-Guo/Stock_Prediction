@@ -8,31 +8,54 @@ from typing import Tuple
 import pandas_ta as ta
 import os
 import shutil
+from typing import List
 
-def main(save_dir:str):
-    TICKERS = [
-        "AAPL",
-        "GOOG",
-        "COIN",
-        "AMZN",
-        "TQQQ",
+def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+    '''extract the targets of a single ticker. returned outputs will be concated to a main input and target dataframe'''
+    columns = ["Open", "Close", "High", "Low", "Volume", "U/D"]
+    if any(col not in df.columns for col in columns):
+        print("input dataframe does not match expected format")
+        return None, None
 
-    ]
+    # shift labels back by one day to simulate prediction. Each day's condition aim to predict the up/down status
+    # of the next day
+    df["U/D"] = df["U/D"].shift(1)
+    df.ffill(inplace=True)
+
+    inputs = df.drop("U/D")
+    targets = df["U/D"]
+    
+    return inputs, targets
+
+def data_split(train_split:int, dev_split:int, inputs_df:pd.DataFrame, targets_df:pd.DataFrame):
+    '''given two dataframes inputs and target containing all ticker OHLCV data. Shapes will be features x tickers x time length'''
+    train_idx = int(len(inputs_df) * train_split)
+    dev_idx = int(len(inputs_df) * dev_split)
+
+    train_inputs, train_targets =  inputs_df.iloc[:train_idx], targets_df.iloc[:train_idx]
+    dev_inputs, dev_targets = inputs_df.iloc[train_idx:dev_idx], targets_df.iloc[train_idx:dev_idx]
+    test_inputs, test_targets = inputs_df.iloc[dev_idx:], targets_df.iloc[dev_idx:]
+
+
+
+def get_and_process_data(tickers:List, save_dir:str):
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
+
 
     ticker_dict = {}
     window_size = 30
 
-    for tick in TICKERS:
+    for tick in tickers:
         print(tick)
         ticker_obj, ticker_df = pull_data(tick)
-        calculate_macd(ticker_df)
-        calculate_bollinger(ticker_df)
+        # calculate_macd(ticker_df)
+        # calculate_bollinger(ticker_df)
         calculate_bin_label(ticker_df)
-        calculate_delta_p(ticker_df)
+        # calculate_delta_p(ticker_df)
 
         ticker_dict[tick] = (ticker_obj, ticker_df)
 
-    print(ticker_dict["GOOG"])
 
     # So we dont have to regenerate the same images for every run
     # for k,v in ticker_dict.items():
@@ -41,7 +64,6 @@ def main(save_dir:str):
     #         segment_df = segment_data(ticker_df, i)
     #         generate_chart(segment_df, i, k, save_dir)
 
-    print(ticker_dict["GOOG"][1].columns)
     
 
 def pull_data(name: str) -> Tuple[yf.Ticker, pd.DataFrame]:
@@ -86,6 +108,7 @@ def calculate_bin_label(df: pd.DataFrame):
         df["U/D"] = np.where(df["Close_delta"] > 0, 1, 0)
 
 
+
 def calculate_delta_p(df: pd.DataFrame):
     """Calculate the binary up/down label for the next day"""
     # input dataframe will have Open High Low Close Volume
@@ -115,8 +138,3 @@ def generate_chart(df: pd.DataFrame, idx:int, ticker:str, save_dir:str, window_s
     
 
 
-if __name__ == "__main__":
-    save_dir = "charts"
-    if os.path.exists(save_dir):
-        shutil.rmtree(save_dir)
-    main(save_dir)
