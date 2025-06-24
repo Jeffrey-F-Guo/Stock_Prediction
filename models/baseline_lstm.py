@@ -1,11 +1,19 @@
 import torch
 import torch.nn as nn
 
-class LSTM:
-    def __init__():
-        super(nn.module)
+class StockLSTM(nn.Module):
+    def __init__(self):
+        super().__init__()
 
-        
+        self.lstm = nn.LSTM(
+
+        )
+        # dropout
+
+        #fc
+
+        #fc
+
     def forward(x):
         ... 
 
