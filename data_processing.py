@@ -10,6 +10,11 @@ import os
 import shutil
 from typing import List
 
+# final storage for data. will be 1 x (total number of 90-day sequences across all stocks)
+# each entry will be a ((90x5), 1) a 90-day sequence of ochlv data and the target prediction for the 91st day--the next day
+# tickers will be intermingled which is fine because we're treating them as general stock data instead of ticker-specific data
+# dataloader will be able to shuffle and randomly pull 90-day chunks from this
+SEGMENTED_DATA = [] 
 def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     '''extract the targets of a single ticker. returned outputs will be concated to a main input and target dataframe'''
     columns = ["Open", "Close", "High", "Low", "Volume", "Percent"]
@@ -25,7 +30,7 @@ def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     inputs = df.drop("Percent")
     targets = df["Percent"]
     
-    return inputs, targets
+    return inputs.to_numpy(), targets.to_numpy()
 
 def data_split(train_split:int, dev_split:int, inputs_df:pd.DataFrame, targets_df:pd.DataFrame):
     '''given two dataframes inputs and target containing all ticker OHLCV data. Shapes will be features x tickers x time length'''
