@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-class BinaryStockLSTM(nn.Module):
+class StockLSTM(nn.Module):
     def __init__(self, input_dim=5, dropout=0.1):
         super().__init__()
         self.dropout = dropout
@@ -34,12 +34,6 @@ class BinaryStockLSTM(nn.Module):
         x = self.lstm(x)
         x = self.dnn(x)
         return x
-
-
-
-def train():
-    ...
-def main():
 
 
 

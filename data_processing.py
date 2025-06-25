@@ -12,18 +12,18 @@ from typing import List
 
 def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
     '''extract the targets of a single ticker. returned outputs will be concated to a main input and target dataframe'''
-    columns = ["Open", "Close", "High", "Low", "Volume", "U/D"]
+    columns = ["Open", "Close", "High", "Low", "Volume", "Percent"]
     if any(col not in df.columns for col in columns):
         print("input dataframe does not match expected format")
         return None, None
 
     # shift labels back by one day to simulate prediction. Each day's condition aim to predict the up/down status
     # of the next day
-    df["U/D"] = df["U/D"].shift(1)
+    df["Percent"] = df["Percent"].shift(1)
     df.ffill(inplace=True)
 
-    inputs = df.drop("U/D")
-    targets = df["U/D"]
+    inputs = df.drop("Percent")
+    targets = df["Percent"]
     
     return inputs, targets
 
