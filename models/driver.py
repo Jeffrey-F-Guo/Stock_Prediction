@@ -39,7 +39,7 @@ def main():
             save_model()
 
 
-def train(mb:int, train_loader:torch.Tensor, model, optimizer):
+def train(train_loader:torch.Tensor, model, optimizer):
     """training loop for one epoch"""
 
     for inputs,targets in tqdm(train_loader):
@@ -48,8 +48,6 @@ def train(mb:int, train_loader:torch.Tensor, model, optimizer):
 
         loss = nn.MSELoss(outputs, targets)
 
-        
-        
         loss.backward()
         optimizer.step()
 
