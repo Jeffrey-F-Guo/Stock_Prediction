@@ -133,6 +133,10 @@ def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, np.float32]:
     return (inputs.to_numpy(), target)
 
 def segment_data(df: pd.DataFrame, window_size: int=90):
+    # 3 options for sampling items:
+    # 1. separate non-overlapping chunks of size seq_len
+    # 2. sliding window stride 1
+    # 3. sliding window stride k where k != 1
     ticker_segments = np.array([extract_targets(df.iloc[idx:idx+window_size]) for idx in range(0, len(df), window_size)])
 
     # unecessary. python slicing handles this internally!
