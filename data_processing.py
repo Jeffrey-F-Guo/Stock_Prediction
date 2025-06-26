@@ -15,22 +15,7 @@ from typing import List
 # tickers will be intermingled which is fine because we're treating them as general stock data instead of ticker-specific data
 # dataloader will be able to shuffle and randomly pull 90-day chunks from this
 SEGMENTED_DATA = [] 
-def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
-    '''extract the targets of a single ticker. returned outputs will be concated to a main input and target dataframe'''
-    columns = ["Open", "Close", "High", "Low", "Volume", "Percent"]
-    if any(col not in df.columns for col in columns):
-        print("input dataframe does not match expected format")
-        return None, None
 
-    # shift labels back by one day to simulate prediction. Each day's condition aim to predict the up/down status
-    # of the next day
-    df["Percent"] = df["Percent"].shift(1)
-    df.ffill(inplace=True)
-
-    inputs = df.drop("Percent")
-    targets = df["Percent"]
-    
-    return inputs.to_numpy(), targets.to_numpy()
 
 def data_split(train_split:int, dev_split:int, inputs_df:pd.DataFrame, targets_df:pd.DataFrame):
     '''given two dataframes inputs and target containing all ticker OHLCV data. Shapes will be features x tickers x time length'''
@@ -41,7 +26,11 @@ def data_split(train_split:int, dev_split:int, inputs_df:pd.DataFrame, targets_d
     dev_inputs, dev_targets = inputs_df.iloc[train_idx:dev_idx], targets_df.iloc[train_idx:dev_idx]
     test_inputs, test_targets = inputs_df.iloc[dev_idx:], targets_df.iloc[dev_idx:]
 
-
+    return {
+        "train": (train_inputs, train_targets),
+        "dev": (dev_inputs, dev_targets),
+        "test": (test_inputs, test_targets),
+    }
 
 def get_and_process_data(tickers:List, save_dir:str):
     if os.path.exists(save_dir):
@@ -49,27 +38,27 @@ def get_and_process_data(tickers:List, save_dir:str):
 
 
     ticker_dict = {}
-    window_size = 30
+    window_size = 90
 
     for tick in tickers:
         print(tick)
         ticker_obj, ticker_df = pull_data(tick)
         # calculate_macd(ticker_df)
         # calculate_bollinger(ticker_df)
-        calculate_bin_label(ticker_df)
-        # calculate_delta_p(ticker_df)
+        # calculate_bin_label(ticker_df)
+        calculate_delta_p(ticker_df)
 
         ticker_dict[tick] = (ticker_obj, ticker_df)
+        ticker_segments = segment_data(ticker_df)
 
+        # commented out we dont have to regenerate the same images for every run
+        # for k,v in ticker_dict.items():
+        #     ticker_df = v[1]
+        #     for i in range(0, len(ticker_df), window_size):
+        #         segment_df = segment_data(ticker_df, i)
+        #         generate_chart(segment_df, i, k, save_dir)
+        SEGMENTED_DATA.extend(ticker_segments)
 
-    # So we dont have to regenerate the same images for every run
-    # for k,v in ticker_dict.items():
-    #     ticker_df = v[1]
-    #     for i in range(0, len(ticker_df), window_size):
-    #         segment_df = segment_data(ticker_df, i)
-    #         generate_chart(segment_df, i, k, save_dir)
-
-    
 
 def pull_data(name: str) -> Tuple[yf.Ticker, pd.DataFrame]:
     print("="*8, f"Processing {name}", "="*8, "\n", end="")
@@ -125,10 +114,35 @@ def calculate_delta_p(df: pd.DataFrame):
     if "Percent" not in df.columns:
         # df["Percent"] = df["Close_delta"]/df["Close"].shift(1) * 100
         df["Percent"] = df["Close"].pct_change() * 100
+        # shift labels back by one day to simulate prediction. Each day's condition aim to predict the up/down status
+        # of the next day
+        df["Percent"] = df["Percent"].shift(1)
+        df.ffill(inplace=True)
 
-def segment_data(df: pd.DataFrame, idx: int, window_size: int=30):
-    segment_df = df.iloc[idx:idx+window_size]
-    return segment_df
+def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, np.float32]:
+    '''extract the targets of a single ticker. returned outputs will be concated to a main input and target dataframe'''
+    columns = ["Open", "Close", "High", "Low", "Volume", "Percent"]
+    if any(col not in df.columns for col in columns):
+        print("input dataframe does not match expected format")
+        return None, None
+
+    # precondition that percent has been aggregated and shifted properly already
+    inputs = df.drop("Percent")
+    target = df["Percent"][:-1]
+
+    return (inputs.to_numpy(), target)
+
+def segment_data(df: pd.DataFrame, window_size: int=90):
+    ticker_segments = np.array([extract_targets(df.iloc[idx:idx+window_size]) for idx in range(0, len(df), window_size)])
+
+    # unecessary. python slicing handles this internally!
+    # add the most recent data cant fill the full window size
+    # length = len(ticker_segments)*window_size
+    # if length != len(df):
+    #     last_idx = len(df) - length
+    #     ticker_segments.append(df.iloc[last_idx:])
+    
+    return ticker_segments
 
 def generate_chart(df: pd.DataFrame, idx:int, ticker:str, save_dir:str, window_size: int = 30):
     os.makedirs(save_dir, exist_ok=True)
