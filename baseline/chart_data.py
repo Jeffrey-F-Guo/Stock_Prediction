@@ -21,7 +21,7 @@ class ChartDataset(Dataset):
 
 
         # stateless LSTM.
-        # loaded data will be mb chunks, with each chunk being seq_len = 90 days long
+        # loaded data will be mb chunks, with each chunk being dimension seq_len x num_features
         input_seq, target_seq = self.inputs[idx], self.targets[idx]
 
         # normalize 

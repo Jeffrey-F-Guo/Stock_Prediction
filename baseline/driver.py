@@ -8,6 +8,7 @@ import torch.optim as optim
 import torch.nn as nn
 def main():
 
+    # TODO: change this to read from file to avoid length string
     TICKERS = [
         "AAPL",
         "GOOG",
@@ -26,7 +27,8 @@ def main():
     
 
     # for now assume this returns a numpy array
-    get_and_process_data(TICKERS, SAVE_DIR)
+    for tick in TICKERS:
+        get_and_process_data(TICKERS, SAVE_DIR)
 
     model = StockLSTM()
     optimizer = optim.AdamW(model.parameters())
