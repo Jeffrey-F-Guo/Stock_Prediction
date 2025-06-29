@@ -53,16 +53,12 @@ def get_and_process_data(tickers:List, save_dir:str, enable_charts: bool = False
 
     ticker_dict = {}
     window_size = 90
-    train_date = "2023-01-01"
-    dev_date = "2024-01-01"
+    train_date = "2024-01-01"
+    dev_date = "2025-01-01"
 
     for tick in tickers:
         print(tick)
         ticker_obj, ticker_df = pull_data(tick)
-        print(ticker_df)
-        print(ticker_df.columns)
-        print(type(ticker_df.index))
-        print("+++++++++++++++++++++++++++++++++")
         # calculate_macd(ticker_df)
         # calculate_bollinger(ticker_df)
         # calculate_bin_label(ticker_df)
@@ -162,10 +158,7 @@ def calculate_delta_p(df: pd.DataFrame):
     if "Close" not in df.columns:
         print("Data does not have close. Cannot calculate")
         return
-    if "Close_delta" not in df.columns:
-        df["Close_delta"] = df["Close"].diff()
     if "Percent" not in df.columns:
-        # df["Percent"] = df["Close_delta"]/df["Close"].shift(-1) * 100
         df["Percent"] = df["Close"].pct_change() * 100
         # shift labels back by one day to simulate prediction. Each day's condition aim to predict the up/down status
         # of the next day
@@ -182,7 +175,7 @@ def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, np.float32]:
     inputs = df.drop(columns=["Percent"])
     target = df["Percent"].iloc[-1]
 
-    return (inputs, target)
+    return (inputs, target.astype(np.float32))
 
 def segment_data(df: pd.DataFrame, window_size: int=90)->List:
     # 3 options for sampling items:
@@ -224,5 +217,5 @@ def main():
     SAVE_DIR = "charts"
     get_and_process_data(TICKERS, SAVE_DIR, enable_charts=True)
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

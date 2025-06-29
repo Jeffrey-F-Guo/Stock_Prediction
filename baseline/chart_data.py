@@ -2,12 +2,11 @@
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 import torch
-
+import numpy as np
 class ChartDataset(Dataset):
-    def __init__(self, inputs:torch.Tensor, targets:torch.Tensor, seq_len:int):
+    def __init__(self, inputs: np.ndarray, targets: np.ndarray):
         self.inputs = inputs
         self.targets = targets
-        self.seq_len = seq_len
 
     def __len__(self):
         return len(self.inputs)
@@ -22,12 +21,11 @@ class ChartDataset(Dataset):
 
         # stateless LSTM.
         # loaded data will be mb chunks, with each chunk being dimension seq_len x num_features
-        input_seq, target_seq = self.inputs[idx], self.targets[idx]
+        input_seq, target = self.inputs[idx], self.targets[idx]
 
         # normalize 
         scaler = StandardScaler()
         norm_input = scaler.fit_transform(input_seq)
-        norm_target = scaler.fit_transform(target_seq)
 
-        return norm_input, norm_target
+        return torch.from_numpy(norm_input).float(), target
     
