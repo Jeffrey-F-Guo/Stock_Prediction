@@ -9,23 +9,29 @@ import pandas_ta as ta
 import os
 import shutil
 from typing import List
+from datetime import datetime, date
 
-def data_split(train_split:int, dev_split:int, inputs_df:pd.DataFrame, targets_df:pd.DataFrame):
+
+def data_split(train_date:str, dev_date:str, data:pd.DataFrame):
     '''given two dataframes inputs and target containing all ticker OHLCV data. Shapes will be features x tickers x time length'''
-    train_idx = int(len(inputs_df) * train_split)
-    dev_idx = int(len(inputs_df) * dev_split)
+    datetime_train = datetime.strptime(train_date, "%Y-%m-%d")
+    datetime_dev = datetime.strptime(dev_date, "%Y-%m-%d")
 
-    train_inputs, train_targets =  inputs_df.iloc[:train_idx], targets_df.iloc[:train_idx]
-    dev_inputs, dev_targets = inputs_df.iloc[train_idx:dev_idx], targets_df.iloc[train_idx:dev_idx]
-    test_inputs, test_targets = inputs_df.iloc[dev_idx:], targets_df.iloc[dev_idx:]
+    if datetime_dev <= datetime_train:
+        print("Error: end of training period must be before end of dev period")
+        return -1 # replace with something better
+
+    train_data =  data.loc[:train_date]
+    dev_data = data.loc[train_date:dev_date]
+    test_data = data.loc[dev_date:]
 
     return {
-        "train": (train_inputs, train_targets),
-        "dev": (dev_inputs, dev_targets),
-        "test": (test_inputs, test_targets),
+        "train": (train_data),
+        "dev": (dev_data),
+        "test": (test_data),
     }
 
-def get_and_process_data(tickers:List, save_dir:str):
+def get_and_process_data(tickers:List, save_dir:str, enable_charts: bool = False):
     if os.path.exists(save_dir):
         shutil.rmtree(save_dir)
 
@@ -33,32 +39,79 @@ def get_and_process_data(tickers:List, save_dir:str):
     # each entry will be a ((90x5), 1) a 90-day sequence of ochlv data and the target prediction for the 91st day--the next day
     # tickers will be intermingled which is fine because we're treating them as general stock data instead of ticker-specific data
     # dataloader will be able to shuffle and randomly pull 90-day chunks from this
-    all_input_segments = []
-    all_target_segments = []  
+    all_train_inputs = []
+    all_train_targets = []  
+    train_dir = os.path.join(save_dir, "train")
+
+    all_dev_inputs = []
+    all_dev_targets = []  
+    dev_dir = os.path.join(save_dir, "dev")
+
+    all_test_inputs = []
+    all_test_targets = []  
+    test_dir = os.path.join(save_dir, "test")
+
     ticker_dict = {}
     window_size = 90
+    train_date = "2023-01-01"
+    dev_date = "2024-01-01"
 
     for tick in tickers:
         print(tick)
         ticker_obj, ticker_df = pull_data(tick)
+        print(ticker_df)
+        print(ticker_df.columns)
+        print(type(ticker_df.index))
+        print("+++++++++++++++++++++++++++++++++")
         # calculate_macd(ticker_df)
         # calculate_bollinger(ticker_df)
         # calculate_bin_label(ticker_df)
         calculate_delta_p(ticker_df)
         # ticker_dict[tick] = (ticker_obj, ticker_df)
-        ticker_segments = segment_data(ticker_df)
 
-        # commented out we dont have to regenerate the same images for every run
-        for idx, (input, target) in enumerate(ticker_segments):
-            generate_chart(input, window_size*idx,tick, save_dir, window_size)
-            all_input_segments.append(input.to_numpy())
-            all_target_segments.append(target)
+        # data is split by date, so have to split first before segmenting
+        split_data_dict = data_split(train_date, dev_date, ticker_df)
+        train_segments = segment_data(split_data_dict["train"])
+        dev_segments = segment_data(split_data_dict["dev"])
+        test_segments = segment_data(split_data_dict["test"])
+        
+        for idx, data in enumerate(train_segments):
+            input, target = extract_targets(data)
+            if (enable_charts):
+                generate_chart(input, window_size*idx,tick, train_dir, window_size)
+            all_train_inputs.append(input.to_numpy())
+            all_train_targets.append(target)
 
-        # _, targets = zip(*ticker_segments)
-        # all_target_segments.extend(list(targets))
+        for idx, data in enumerate(dev_segments):
+            input, target = extract_targets(data)
+            if (enable_charts):
+                generate_chart(input, window_size*idx,tick, dev_dir, window_size)
+            all_dev_inputs.append(input.to_numpy())
+            all_dev_targets.append(target)
 
-    print(np.array(all_input_segments))
-    return np.array(all_input_segments), np.array(all_target_segments)
+        for idx, data in enumerate(test_segments):
+            input, target = extract_targets(data)
+            if (enable_charts):
+                generate_chart(input, window_size*idx,tick, test_dir, window_size)
+            all_test_inputs.append(input.to_numpy())
+            all_test_targets.append(target)
+
+    all_train_inputs = np.array(all_train_inputs)
+    all_train_targets = np.array(all_train_targets)
+
+    all_dev_inputs = np.array(all_dev_inputs)
+    all_dev_targets = np.array(all_dev_targets)
+
+    all_test_inputs = np.array(all_test_inputs)
+    all_test_targets = np.array(all_test_targets) 
+
+    all_data_dict = {
+        "train": {"inputs":all_train_inputs, "targets":all_train_targets},
+        "dev": {"inputs":all_dev_inputs, "targets":all_dev_targets},
+        "test": {"inputs":all_test_inputs, "targets":all_test_targets},
+    }
+
+    return all_data_dict
 
 
 def pull_data(name: str) -> Tuple[yf.Ticker, pd.DataFrame]:
@@ -137,8 +190,8 @@ def segment_data(df: pd.DataFrame, window_size: int=90)->List:
     # 2. sliding window stride 1
     # 3. sliding window stride k where k != 1
 
-    # contains (inputs, target) tuple
-    ticker_segments = [extract_targets(df.iloc[idx:idx+window_size]) for idx in range(0, len(df)-window_size, window_size)]
+    # each array index contains a 90-day sequence
+    ticker_segments = [df.iloc[idx:idx+window_size] for idx in range(0, len(df)-window_size, window_size)]
 
     # add the most recent data cant fill the full window size
     # length = len(ticker_segments)*window_size
@@ -169,7 +222,7 @@ def main():
     ]
 
     SAVE_DIR = "charts"
-    get_and_process_data(TICKERS, SAVE_DIR)
+    get_and_process_data(TICKERS, SAVE_DIR, enable_charts=True)
 
 if __name__ == "__main__":
     main()
