@@ -14,9 +14,9 @@ from sklearn.preprocessing import StandardScaler
 
 def normalize_data(data_dict):
     scaler = StandardScaler()
-    train_data = pd.DataFrame(scaler.fit_transform(data_dict["train"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
-    dev_data = pd.DataFrame(scaler.transform(data_dict["dev"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
-    test_data = pd.DataFrame(scaler.transform(data_dict["test"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
+    train_data = pd.DataFrame(scaler.fit_transform(data_dict["train"]), index=data_dict["train"].index, columns=data_dict["train"].columns)
+    dev_data = pd.DataFrame(scaler.transform(data_dict["dev"]), index=data_dict["dev"].index, columns=data_dict["dev"].columns)
+    test_data = pd.DataFrame(scaler.transform(data_dict["test"]), index=data_dict["test"].index, columns=data_dict["test"].columns)
 
     return {
         "train": (train_data),
@@ -211,13 +211,20 @@ def segment_data(df: pd.DataFrame, window_size: int=90, stride:int = 10)->List:
 def generate_chart(df: pd.DataFrame, idx:int, ticker:str, save_dir:str, window_size: int = 90):
     os.makedirs(save_dir, exist_ok=True)
 
-    mpf.plot(
+    fig, axes = mpf.plot(
         df, 
         type="candle", 
         style="yahoo", 
         figscale=1.5,
-        savefig = os.path.join(save_dir, f"{ticker}_{idx}_to_{idx+window_size}.png")
+        returnfig = True
     )
+
+    for ax in axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    fig.savefig(os.path.join(save_dir, f"{ticker}_{idx}_to_{idx+window_size}.png"))
+
     
 def main():
     TICKERS = [
@@ -232,5 +239,5 @@ def main():
     SAVE_DIR = "charts"
     get_and_process_data(TICKERS, SAVE_DIR, enable_charts=True)
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
