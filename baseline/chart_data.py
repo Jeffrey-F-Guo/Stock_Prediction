@@ -1,5 +1,5 @@
 # dataset class for dataloader
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from sklearn.preprocessing import StandardScaler
 import torch
 import numpy as np
@@ -23,9 +23,9 @@ class ChartDataset(Dataset):
         # loaded data will be mb chunks, with each chunk being dimension seq_len x num_features
         input_seq, target = self.inputs[idx], self.targets[idx]
 
-        # normalize 
-        scaler = StandardScaler()
-        norm_input = scaler.fit_transform(input_seq)
+        # # normalize 
+        # scaler = StandardScaler()
+        # norm_input = scaler.fit_transform(input_seq)
 
-        return torch.from_numpy(norm_input).float(), target
+        return torch.from_numpy(input_seq).float(), target
     

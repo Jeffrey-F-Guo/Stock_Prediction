@@ -10,7 +10,19 @@ import os
 import shutil
 from typing import List
 from datetime import datetime, date
+from sklearn.preprocessing import StandardScaler
 
+def normalize_data(data_dict):
+    scaler = StandardScaler()
+    train_data = pd.DataFrame(scaler.fit_transform(data_dict["train"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
+    dev_data = pd.DataFrame(scaler.transform(data_dict["dev"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
+    test_data = pd.DataFrame(scaler.transform(data_dict["test"]), columns=["Open", "Close", "High", "Low", "Volume", "Percent"])
+
+    return {
+        "train": (train_data),
+        "dev": (dev_data),
+        "test": (test_data),
+    }
 
 def data_split(train_date:str, dev_date:str, data:pd.DataFrame):
     '''given two dataframes inputs and target containing all ticker OHLCV data. Shapes will be features x tickers x time length'''
@@ -67,9 +79,12 @@ def get_and_process_data(tickers:List, save_dir:str, enable_charts: bool = False
 
         # data is split by date, so have to split first before segmenting
         split_data_dict = data_split(train_date, dev_date, ticker_df)
-        train_segments = segment_data(split_data_dict["train"])
-        dev_segments = segment_data(split_data_dict["dev"])
-        test_segments = segment_data(split_data_dict["test"])
+        normalized_data_dict = normalize_data(split_data_dict)
+
+        train_segments = segment_data(normalized_data_dict["train"])
+        dev_segments = segment_data(normalized_data_dict["dev"])
+        test_segments = segment_data(normalized_data_dict["test"])
+
         
         for idx, data in enumerate(train_segments):
             input, target = extract_targets(data)
@@ -177,14 +192,14 @@ def extract_targets(df:pd.DataFrame) -> Tuple[pd.DataFrame, np.float32]:
 
     return (inputs, target.astype(np.float32))
 
-def segment_data(df: pd.DataFrame, window_size: int=90)->List:
+def segment_data(df: pd.DataFrame, window_size: int=90, stride:int = 10)->List:
     # 3 options for sampling items:
     # 1. separate non-overlapping chunks of size seq_len
     # 2. sliding window stride 1
     # 3. sliding window stride k where k != 1
 
     # each array index contains a 90-day sequence
-    ticker_segments = [df.iloc[idx:idx+window_size] for idx in range(0, len(df)-window_size, window_size)]
+    ticker_segments = [df.iloc[idx:idx+window_size] for idx in range(0, len(df)-window_size, stride)]
 
     # add the most recent data cant fill the full window size
     # length = len(ticker_segments)*window_size

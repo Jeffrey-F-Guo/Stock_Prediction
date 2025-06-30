@@ -10,14 +10,33 @@ import torch.nn.functional as F
 def main():
     print("STARTED")
     # TODO: change this to read from file to avoid length string
-    TICKERS = [
-        "AAPL",
-        "GOOG",
-        "COIN",
-        "AMZN",
-        "TQQQ",
+    # TICKERS = [
+    #     "AAPL",
+    #     "GOOG",
+    #     "COIN",
+    #     "AMZN",
+    #     "TQQQ",
+    #     "META",
+    #     "MSFT",
+    #     "NVDA",
+    #     "PLTR",
+    #     "LCID",
+    #     "NKE",
+    #     "SOFI",
+    #     "TSLA",
+    #     "INTC",
+    #     "RKLB",
+    #     "SNAP",
+    #     "HIMS",
+    #     "AMD",
+    #     "ENPH",
+    #     "RBLX",
+    #     "PYPL",
+    #     "TMC",
+    #     "TSM"
 
-    ]
+    # ]
+    TICKERS = ['TCEHY', 'NFLX', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'BIDU', 'GOOG', 'AAPL', 'INTC']
 
     SAVE_DIR = "charts"
 
@@ -25,11 +44,12 @@ def main():
     epochs = 50
     batch_size = 32
     report_freq = 10
+    learn_rate = 0.001
     
     model = StockLSTM()
-    optimizer = optim.AdamW(model.parameters())
+    optimizer = optim.AdamW(model.parameters(), learn_rate)
 
-    data_dict = get_and_process_data(TICKERS, SAVE_DIR, enable_charts=True)
+    data_dict = get_and_process_data(TICKERS, SAVE_DIR, enable_charts=False)
 
     train_inputs = data_dict["train"]["inputs"]
     train_targets = data_dict["train"]["targets"]
@@ -67,13 +87,13 @@ def train(train_loader: DataLoader, model, optimizer):
     for inputs,targets in train_loader:
         optimizer.zero_grad()
         outputs = torch.squeeze(model(inputs))
+        print(f"output: {outputs}, target: {targets}")
         loss = F.mse_loss(outputs, targets)
         total_loss += loss.item()
         loss.backward()
         optimizer.step()
     
     return total_loss/len(train_loader)
-
     
 
 def evaluate(dev_loader: DataLoader, model):
