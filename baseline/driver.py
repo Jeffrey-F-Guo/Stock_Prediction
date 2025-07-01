@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+import os
+
 def main():
     print("STARTED")
     # TODO: change this to read from file to avoid length string
@@ -76,7 +78,7 @@ def main():
         if (epoch+1) % report_freq == 0:
             avg_dev_loss = evaluate(dev_loader, model)
             print("="*10, f"dev loss: {avg_dev_loss}", "="*10, "\n", end="")
-            # save_model()
+            save_model(model, optimizer, "checkpoint.pth")
 
 
 def train(train_loader: DataLoader, model, optimizer):
@@ -107,8 +109,15 @@ def evaluate(dev_loader: DataLoader, model):
     avg_loss = total_loss/len(dev_loader)
     return avg_loss
 
-def save_model():
-    ...
+def save_model(model, optimizer, filename:str):
+    save_dir = "models"
+    os.makedirs(save_dir, exist_ok=True)
+    checkpoint = {
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+    }
+    filepath = os.path.join(save_dir, filename)
+    torch.save(checkpoint, filepath)
 
 if __name__ == "__main__":
     main()

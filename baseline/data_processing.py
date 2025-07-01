@@ -12,11 +12,14 @@ from typing import List
 from datetime import datetime, date
 from sklearn.preprocessing import StandardScaler
 
+stock_map = {}
+
 def normalize_data(data_dict):
     scaler = StandardScaler()
     train_data = pd.DataFrame(scaler.fit_transform(data_dict["train"]), index=data_dict["train"].index, columns=data_dict["train"].columns)
     dev_data = pd.DataFrame(scaler.transform(data_dict["dev"]), index=data_dict["dev"].index, columns=data_dict["dev"].columns)
     test_data = pd.DataFrame(scaler.transform(data_dict["test"]), index=data_dict["test"].index, columns=data_dict["test"].columns)
+
 
     return {
         "train": (train_data),
