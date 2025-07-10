@@ -67,7 +67,7 @@ def get_and_process_data(tickers:List, save_dir:str, enable_charts: bool = False
     test_dir = os.path.join(save_dir, "test")
 
     ticker_dict = {}
-    window_size = 90
+    window_size = 180
     train_date = "2024-01-01"
     dev_date = "2025-01-01"
 
